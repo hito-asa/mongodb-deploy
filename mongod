@@ -1,0 +1,96 @@
+#!/bin/sh
+
+. /etc/init.d/functions
+
+#parameter
+mongoHome=/usr/local/mongodb/latest
+mongod=${mongoHome}/bin/mongod
+mongos=${mongoHome}/bin/mongos
+confdir=/usr/local/mongodb/conf
+piddir=/var/run
+lockdir=/var/lock/subsys
+
+RETVAL=0
+
+start() {
+  kind=$1
+  echo -n $"Starting MongoDB ${kind} services: " 
+  if [ $kind == "normal" ]; then
+    daemon --pidfile=${piddir}/mongod_${kind}.pid ${mongod} -f ${confdir}/${kind}.conf
+  elif [ $kind == "shard" ]; then
+    daemon --pidfile=${piddir}/mongod_${kind}.pid ${mongod} -f ${confdir}/${kind}.conf
+  elif [ $kind == "config" ]; then
+    daemon --pidfile=${piddir}/mongod_${kind}.pid ${mongod} -f ${confdir}/${kind}.conf
+  elif [ $kind == "mongos" ]; then
+    daemon --pidfile=${piddir}/mongod_${kind}.pid ${mongos} -f ${confdir}/${kind}.conf
+  fi
+  RETVAL=$?
+  echo "" 
+  [ $RETVAL -eq 0 ] && touch ${lockdir}/mongod_${kind}.lock || RETVAL=1
+  return $RETVAL
+}
+
+stop() {
+  kind=$1
+  echo
+  echo -n $"Shutting down MongoDB services: "
+  if [ $kind == "mongos" ]; then
+    killproc $mongos
+  else
+    killproc $mongod
+  fi
+  RETVAL=$?
+  [ $RETVAL -eq 0 ] && rm -f ${lockdir}/mongod_*.lock
+  echo "" 
+  return $RETVAL
+}
+
+restart() {
+  kind=$1
+  stop $kind
+  start $kind
+}
+
+case "$1" in
+  start_normal)
+    start "normal"
+  ;;
+  start_shard)
+    start "shard"
+  ;;
+  start_config)
+    start "config"
+  ;;
+  start_mongos)
+    start "mongos"
+  ;;
+  stop_normal)
+    stop "normal"
+  ;;
+  stop_shard)
+    stop "shard"
+  ;;
+  stop_config)
+    stop "config"
+  ;;
+  stop_mongos)
+    stop "mongos"
+  ;;
+  restart_normal)
+    restart "normal"
+  ;;
+  restart_shard)
+    restart "shard"
+  ;;
+  restart_config)
+    restart "config"
+  ;;
+  restart_mongos)
+    restart "mongos"
+  ;;
+  *)
+  echo $"Usage: $0 {start|stop|restart}" 
+  exit 2
+esac
+
+exit $?
